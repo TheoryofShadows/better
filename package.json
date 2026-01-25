@@ -1,7 +1,7 @@
 {
   "name": "documate",
-  "version": "1.0.0",
-  "description": "Intelligent code documentation generator and understanding tool - solving the #1 developer pain point",
+  "version": "2.0.0",
+  "description": "AI-powered code intelligence platform - agentic documentation, debt prediction, and auto-fixing",
   "main": "dist/index.js",
   "bin": {
     "documate": "./dist/cli.js"
@@ -11,8 +11,9 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --reporter=verbose",
     "lint": "eslint src --ext .ts",
     "prepublishOnly": "npm run build"
   },
@@ -22,30 +23,41 @@
     "developer-tools",
     "productivity",
     "cli",
+    "ai-agent",
+    "technical-debt",
+    "code-intelligence",
+    "auto-documentation",
     "typescript",
     "javascript",
-    "python",
-    "code-understanding"
+    "python"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@types/diff": "^7.0.2",
+    "@types/inquirer": "^9.0.9",
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.0",
-    "tsx": "^4.7.0",
-    "vitest": "^1.2.0",
-    "eslint": "^8.56.0",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0"
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
   },
   "dependencies": {
-    "commander": "^12.0.0",
-    "chalk": "^5.3.0",
-    "ora": "^8.0.0",
-    "glob": "^10.3.10",
+    "@octokit/rest": "^20.0.2",
     "boxen": "^7.1.1",
+    "chalk": "^5.3.0",
     "cli-table3": "^0.6.3",
-    "figures": "^6.0.1"
+    "commander": "^12.0.0",
+    "diff": "^5.2.0",
+    "eventemitter3": "^5.0.1",
+    "figures": "^6.0.1",
+    "glob": "^10.3.10",
+    "inquirer": "^9.2.12",
+    "ora": "^8.0.0",
+    "simple-git": "^3.22.0"
   },
   "engines": {
     "node": ">=18.0.0"
