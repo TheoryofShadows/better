@@ -1,8 +1,17 @@
-# DocuMate v2.0
+# DocuMate v2.1
 
 **AI-Powered Code Intelligence Platform**
 
 DocuMate is an intelligent CLI tool that solves the biggest developer pain points through a multi-agent architecture.
+
+## What's New in v2.1
+
+- **Multi-Modal Analysis**: VisionAgent parses diagrams, architecture images, and visual documentation
+- **Security Scanning**: Detect hardcoded secrets, SQL injection, XSS, and other vulnerabilities
+- **Burnout Prediction**: AI-powered analysis of code patterns that lead to developer burnout
+- **Onboarding Guides**: Role-based documentation for junior, mid, senior, and lead developers
+- **VS Code Extension**: Real-time health scores, inline hints, and integrated chat
+- **CI/CD Integration**: GitHub Actions, JUnit, and JSON output for pipeline health checks
 
 ## The Problem
 
@@ -80,30 +89,28 @@ documate chat
 
 ## Agent Architecture
 
-DocuMate v2.0 introduces a multi-agent system:
+DocuMate v2.1 introduces an expanded multi-agent system:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   AgentOrchestrator                      │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │ ParseAgent  │  │PredictAgent │  │  FixAgent   │     │
-│  │             │  │             │  │             │     │
-│  │ • AST scan  │  │ • Git hist  │  │ • Auto-doc  │     │
-│  │ • Metrics   │  │ • Patterns  │  │ • Style fix │     │
-│  │ • Structure │  │ • Risk calc │  │ • PR create │     │
-│  └─────────────┘  └─────────────┘  └─────────────┘     │
-│                                                          │
-│  ┌─────────────┐  ┌─────────────┐                       │
-│  │ExplainAgent │  │  ChatAgent  │                       │
-│  │             │  │             │                       │
-│  │ • Zoom in/out│ │ • Q&A mode │                       │
-│  │ • Patterns  │  │ • Context  │                       │
-│  │ • Deps graph│  │ • History  │                       │
-│  └─────────────┘  └─────────────┘                       │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                         AgentOrchestrator                              │
+├───────────────────────────────────────────────────────────────────────┤
+│  Core Agents                                                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
+│  │ ParseAgent  │  │PredictAgent │  │  FixAgent   │  │ExplainAgent │  │
+│  │ • AST scan  │  │ • Git hist  │  │ • Auto-doc  │  │ • Zoom in/out│ │
+│  │ • Metrics   │  │ • Patterns  │  │ • Style fix │  │ • Patterns  │  │
+│  │ • Structure │  │ • Risk calc │  │ • PR create │  │ • Deps graph│  │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │
+│                                                                        │
+│  v2.1 Extended Agents                                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
+│  │ VisionAgent │  │SecurityAgent│  │OnboardAgent │  │  ChatAgent  │  │
+│  │ • Diagrams  │  │ • Secrets   │  │ • Role guide│  │ • Q&A mode  │  │
+│  │ • SVG parse │  │ • Vuln scan │  │ • Learning  │  │ • Context   │  │
+│  │ • Code links│  │ • Burnout   │  │ • Webhooks  │  │ • History   │  │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ### ParseAgent
@@ -135,6 +142,34 @@ Interactive Q&A about your codebase:
 - Code search
 - Health reports
 - Follow-up suggestions
+
+### VisionAgent (v2.1)
+Multi-modal analysis for visual documentation:
+- Parse architecture diagrams and flowcharts
+- Extract elements from SVG files
+- Link diagram components to actual code
+- Support for PNG, JPG, SVG, PDF formats
+
+### SecurityAgent (v2.1)
+Security vulnerability scanning:
+- Detect hardcoded secrets (API keys, passwords, tokens)
+- Find SQL injection, XSS, command injection risks
+- Path traversal and eval() detection
+- Configurable severity thresholds
+
+### BurnoutPredictor (v2.1)
+AI-powered developer burnout risk analysis:
+- Analyze complexity and documentation patterns
+- Detect code hotspots from git history
+- Identify high-risk files needing attention
+- Provide actionable recommendations
+
+### OnboardingAgent (v2.1)
+Role-based onboarding guide generation:
+- Junior/Mid/Senior/Lead developer paths
+- Customizable learning tracks
+- Auto-generate markdown guides
+- Webhook integration for updates
 
 ## Usage Examples
 
@@ -224,6 +259,92 @@ This file provides the core code parsing functionality.
 documate> exit
 ```
 
+### Security Scan (v2.1)
+
+```bash
+$ documate security
+
+🔒 SECURITY SCAN RESULTS
+
+Files scanned: 47
+
+🔴 SECRETS DETECTED: 3
+┌─────────────────┬──────────────────┬──────────┬──────┐
+│ Type            │ File             │ Severity │ Line │
+├─────────────────┼──────────────────┼──────────┼──────┤
+│ aws_credentials │ src/config.ts    │ CRITICAL │ 12   │
+│ api_key         │ src/api/client.ts│ HIGH     │ 45   │
+│ password        │ src/db/connect.ts│ HIGH     │ 8    │
+└─────────────────┴──────────────────┴──────────┴──────┘
+
+⚠️  VULNERABILITIES: 2
+┌─────────────────┬──────────────────┬──────────┬──────┐
+│ Type            │ File             │ Severity │ Line │
+├─────────────────┼──────────────────┼──────────┼──────┤
+│ sql_injection   │ src/db/query.ts  │ HIGH     │ 34   │
+│ xss             │ src/ui/render.ts │ MEDIUM   │ 89   │
+└─────────────────┴──────────────────┴──────────┴──────┘
+
+💡 Recommendations:
+- Move secrets to environment variables
+- Use parameterized queries for database operations
+- Sanitize user input before rendering
+```
+
+### Burnout Risk Analysis (v2.1)
+
+```bash
+$ documate burnout
+
+🧠 BURNOUT RISK ANALYSIS
+
+Overall Risk: MEDIUM (0.45)
+Trend: stable
+
+📊 Risk Factors:
+┌─────────────────────┬────────┬─────────────────────────────────┐
+│ Factor              │ Weight │ Description                     │
+├─────────────────────┼────────┼─────────────────────────────────┤
+│ High Complexity     │ 0.35   │ 12 functions above threshold    │
+│ Low Documentation   │ 0.25   │ 28% undocumented code           │
+│ Large File Sizes    │ 0.15   │ 5 files over 500 lines          │
+└─────────────────────┴────────┴─────────────────────────────────┘
+
+🔥 Hotspots (files needing attention):
+- src/parser/index.ts (risk: 0.72)
+- src/analyzer/core.ts (risk: 0.65)
+- src/generator/html.ts (risk: 0.58)
+
+💡 Recommendations:
+- Break down src/parser/index.ts into smaller modules
+- Add documentation to high-complexity functions
+- Consider pair programming for complex areas
+```
+
+### Generate Onboarding Guide (v2.1)
+
+```bash
+$ documate onboard --role junior
+
+📚 ONBOARDING GUIDE GENERATED
+
+Role: New Developer (Junior)
+Output: ./docs/onboarding/junior-guide.md
+
+Guide includes:
+✓ Project overview and architecture
+✓ Getting started steps
+✓ Key concepts explained
+✓ Learning path with estimated times
+✓ Links to important files
+
+Learning Path:
+1. Introduction (15 min) - Project overview
+2. Setup (30 min) - Development environment
+3. Architecture (45 min) - How it all fits together
+4. First Task (60 min) - Make your first contribution
+```
+
 ## Health Scoring
 
 DocuMate calculates a health score (0-100) based on:
@@ -242,6 +363,59 @@ Grades:
 - **D** (60-69): Needs work
 - **F** (<60): Critical
 
+## VS Code Extension (v2.1)
+
+Install the DocuMate VS Code extension for real-time code intelligence:
+
+**Features:**
+- Health score in status bar
+- Inline complexity hints via CodeLens
+- Context menu commands for explaining code
+- Side panel with health metrics and issues
+- Integrated chat for codebase questions
+
+**Commands:**
+- `DocuMate: Analyze Workspace` - Full analysis
+- `DocuMate: Explain Selection` - Explain selected code
+- `DocuMate: Show Health Score` - Health dashboard
+- `DocuMate: Find Undocumented Code` - Jump to missing docs
+- `DocuMate: Open Chat` - Interactive Q&A
+
+## CI/CD Integration (v2.1)
+
+Integrate health checks into your CI/CD pipeline:
+
+```bash
+# GitHub Actions
+documate health --ci --format github-actions
+
+# JUnit XML output
+documate health --ci --format junit > test-results.xml
+
+# JSON for custom processing
+documate health --ci --format json
+```
+
+**GitHub Actions Workflow Example:**
+
+```yaml
+- name: DocuMate Health Check
+  run: npx documate health --ci --format github-actions
+  continue-on-error: true
+
+- name: Upload Health Report
+  uses: actions/upload-artifact@v3
+  with:
+    name: documate-report
+    path: documate-report.json
+```
+
+**Health Badge:**
+Add a health badge to your README:
+```markdown
+![DocuMate Health](https://img.shields.io/badge/DocuMate-85%25-brightgreen)
+```
+
 ## Configuration
 
 Create `.documate.json` in your project root:
@@ -253,7 +427,32 @@ Create `.documate.json` in your project root:
   "outputDir": "./docs",
   "format": "markdown",
   "minComplexity": 10,
-  "generateTOC": true
+  "generateTOC": true,
+  "multiModal": {
+    "enabled": true,
+    "parseImages": true,
+    "parseDiagrams": true,
+    "supportedFormats": [".png", ".jpg", ".svg", ".pdf"]
+  },
+  "security": {
+    "enabled": true,
+    "scanSecrets": true,
+    "scanVulnerabilities": true,
+    "severityThreshold": "medium"
+  },
+  "onboarding": {
+    "enabled": true,
+    "roles": [
+      { "name": "New Developer", "level": "junior", "focusAreas": ["getting-started"] },
+      { "name": "Team Member", "level": "mid", "focusAreas": ["deep-dive", "patterns"] }
+    ]
+  },
+  "cicd": {
+    "enabled": true,
+    "failOnLowHealth": true,
+    "healthThreshold": 60,
+    "outputFormat": "github-actions"
+  }
 }
 ```
 

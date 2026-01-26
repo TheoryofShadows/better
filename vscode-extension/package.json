@@ -1,0 +1,142 @@
+{
+  "name": "documate-vscode",
+  "displayName": "DocuMate - Code Intelligence",
+  "description": "AI-powered code documentation, health scoring, and insights",
+  "version": "1.0.0",
+  "publisher": "documate",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "documentation",
+    "code analysis",
+    "health",
+    "AI",
+    "productivity"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "documate.analyze",
+        "title": "DocuMate: Analyze Workspace"
+      },
+      {
+        "command": "documate.explainFile",
+        "title": "DocuMate: Explain This File"
+      },
+      {
+        "command": "documate.explainSelection",
+        "title": "DocuMate: Explain Selection"
+      },
+      {
+        "command": "documate.generateDocs",
+        "title": "DocuMate: Generate Documentation"
+      },
+      {
+        "command": "documate.showHealth",
+        "title": "DocuMate: Show Health Score"
+      },
+      {
+        "command": "documate.findUndocumented",
+        "title": "DocuMate: Find Undocumented Code"
+      },
+      {
+        "command": "documate.openChat",
+        "title": "DocuMate: Open Chat"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "documate.explainSelection",
+          "group": "documate",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "documate.explainFile",
+          "group": "documate"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "documate.explainFile",
+          "group": "documate",
+          "when": "resourceScheme == file"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "documate",
+          "title": "DocuMate",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "documate": [
+        {
+          "id": "documate.health",
+          "name": "Health Score"
+        },
+        {
+          "id": "documate.issues",
+          "name": "Issues"
+        },
+        {
+          "id": "documate.chat",
+          "name": "Chat"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "DocuMate",
+      "properties": {
+        "documate.autoAnalyze": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically analyze workspace on open"
+        },
+        "documate.showInlineHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline complexity hints"
+        },
+        "documate.complexityThreshold": {
+          "type": "number",
+          "default": 10,
+          "description": "Minimum complexity to highlight"
+        },
+        "documate.showHealthBadge": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show health score in status bar"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "documate": "^2.0.0"
+  }
+}
