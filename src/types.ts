@@ -124,6 +124,49 @@ export interface Config {
   languages: Language[];
   minComplexity: number;
   generateTOC: boolean;
+  // v2.1 Multi-modal features
+  multiModal?: MultiModalConfig;
+  // v2.1 Onboarding features
+  onboarding?: OnboardingConfig;
+  // v2.1 Security and health features
+  security?: SecurityConfig;
+  // v2.1 CI/CD integration
+  cicd?: CICDConfig;
+}
+
+export interface MultiModalConfig {
+  enabled: boolean;
+  parseImages: boolean;
+  parseDiagrams: boolean;
+  supportedFormats: string[];
+}
+
+export interface OnboardingConfig {
+  enabled: boolean;
+  roles: OnboardingRole[];
+  autoUpdate: boolean;
+  webhookUrl?: string;
+}
+
+export interface OnboardingRole {
+  name: string;
+  level: 'junior' | 'mid' | 'senior' | 'lead';
+  focusAreas: string[];
+}
+
+export interface SecurityConfig {
+  enabled: boolean;
+  scanSecrets: boolean;
+  scanVulnerabilities: boolean;
+  scanDependencies: boolean;
+  severityThreshold: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface CICDConfig {
+  enabled: boolean;
+  failOnLowHealth: boolean;
+  healthThreshold: number;
+  outputFormat: 'json' | 'junit' | 'github-actions';
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -133,5 +176,32 @@ export const DEFAULT_CONFIG: Config = {
   format: 'markdown',
   languages: ['typescript', 'javascript', 'python', 'java', 'go'],
   minComplexity: 10,
-  generateTOC: true
+  generateTOC: true,
+  multiModal: {
+    enabled: false,
+    parseImages: true,
+    parseDiagrams: true,
+    supportedFormats: ['.png', '.jpg', '.svg', '.pdf']
+  },
+  onboarding: {
+    enabled: false,
+    roles: [
+      { name: 'New Developer', level: 'junior', focusAreas: ['getting-started', 'architecture'] },
+      { name: 'Team Member', level: 'mid', focusAreas: ['deep-dive', 'patterns'] }
+    ],
+    autoUpdate: true
+  },
+  security: {
+    enabled: true,
+    scanSecrets: true,
+    scanVulnerabilities: true,
+    scanDependencies: true,
+    severityThreshold: 'medium'
+  },
+  cicd: {
+    enabled: false,
+    failOnLowHealth: false,
+    healthThreshold: 60,
+    outputFormat: 'json'
+  }
 };
