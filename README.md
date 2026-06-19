@@ -41,6 +41,25 @@ Or use directly with npx:
 npx documate analyze
 ```
 
+## AI Configuration
+
+DocuMate's generative agents — `chat`, `explain`, `fix` (documentation generation),
+and `predict` (technical-debt reasoning) — are powered by Claude. Set an Anthropic
+API key to enable real inference:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+- **With a key:** these agents call Claude (`claude-opus-4-8` by default) for genuine,
+  code-specific output.
+- **Without a key** (CI, offline, tests): they automatically fall back to fast built-in
+  heuristics — the tool never hard-fails on a missing key.
+
+Override the model per project in `.documate.json` via the agent config's `aiModel`
+field. All other commands (`analyze`, `health`, `generate`, `undocumented`, `complex`)
+are deterministic and never require a key.
+
 ## Quick Start
 
 ```bash

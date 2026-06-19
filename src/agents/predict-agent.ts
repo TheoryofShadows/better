@@ -5,6 +5,7 @@
 
 import { BaseAgent } from './base.js';
 import simpleGit, { SimpleGit, LogResult } from 'simple-git';
+import { isLLMAvailable, llmComplete } from './llm.js';
 import type { ParsedFile, CodeBlock } from '../types.js';
 import type { DebtPrediction, DebtFactor, GitCommit } from './types.js';
 
@@ -250,7 +251,7 @@ export class PredictAgent extends BaseAgent<PredictInput, PredictOutput> {
     }
 
     // Generate recommendation
-    const recommendation = this.generateRecommendation(factors, riskLevel);
+    const recommendation = await this.generateRecommendation(factors, riskLevel, file);
 
     // Predict future score (simplified: assumes 10% degradation over 6 months without intervention)
     const predictedScore = Math.min(100, riskScore * 1.1);
@@ -295,7 +296,51 @@ export class PredictAgent extends BaseAgent<PredictInput, PredictOutput> {
     return false;
   }
 
-  private generateRecommendation(
+  private async generateRecommendation(
+    factors: DebtFactor[],
+    riskLevel: DebtPrediction['riskLevel'],
+    file: ParsedFile
+  ): Promise<string> {
+    if (isLLMAvailable() && factors.length > 0) {
+      try {
+        return await this.generateRecommendationAI(factors, riskLevel, file);
+      } catch (error) {
+        this.log(`AI recommendation failed for '${file.info.relativePath}', using heuristic: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    return this.generateRecommendationHeuristic(factors, riskLevel);
+  }
+
+  private async generateRecommendationAI(
+    factors: DebtFactor[],
+    riskLevel: DebtPrediction['riskLevel'],
+    file: ParsedFile
+  ): Promise<string> {
+    const factorList = factors
+      .map((f) => `- ${f.name} (impact ${f.impact}): ${f.description}`)
+      .join('\n');
+
+    const system =
+      'You are a staff engineer advising on technical debt. Given a file and its ' +
+      'measured risk factors, give a concise, specific, actionable recommendation ' +
+      '(2-3 sentences) for what to do next. Reference the concrete factors; do not ' +
+      'restate the metrics verbatim or use generic filler. Output plain prose only.';
+
+    const prompt =
+      `File: ${file.info.relativePath} (${file.info.language}, ${file.info.lines} lines)\n` +
+      `Overall risk level: ${riskLevel}\n\n` +
+      `Detected debt factors:\n${factorList}`;
+
+    const recommendation = await llmComplete({
+      system,
+      prompt,
+      maxTokens: 512,
+      model: this.context?.config.aiModel
+    });
+    return recommendation || this.generateRecommendationHeuristic(factors, riskLevel);
+  }
+
+  private generateRecommendationHeuristic(
     factors: DebtFactor[],
     riskLevel: DebtPrediction['riskLevel']
   ): string {

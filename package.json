@@ -1,6 +1,6 @@
 {
   "name": "documate",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "AI-powered code intelligence platform - agentic documentation, debt prediction, and auto-fixing",
   "main": "dist/index.js",
   "bin": {
@@ -46,6 +46,7 @@
     "vitest": "^1.2.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0",
     "@octokit/rest": "^20.0.2",
     "boxen": "^7.1.1",
     "chalk": "^5.3.0",

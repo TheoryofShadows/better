@@ -4,6 +4,7 @@
  */
 
 import { BaseAgent } from './base.js';
+import { isLLMAvailable, llmComplete, llmCompleteJSON } from './llm.js';
 import type { ParsedFile, CodeBlock, Language } from '../types.js';
 import type { CodeExplanation, ChatMessage, ChatSession } from './types.js';
 import { readFile } from 'fs/promises';
@@ -32,6 +33,26 @@ export interface RelatedCode {
   file: string;
   block: string;
   relationship: string;
+}
+
+/**
+ * Build a compact, token-bounded textual summary of the codebase for use as
+ * LLM context (file list grouped by language, with each file's defined symbols).
+ */
+function summarizeCodebase(files: ParsedFile[], maxFiles = 80): string {
+  const lines: string[] = [`${files.length} files analyzed.`];
+  for (const file of files.slice(0, maxFiles)) {
+    const symbols = file.blocks
+      .filter(b => ['class', 'function', 'method', 'interface', 'type'].includes(b.type))
+      .map(b => b.name)
+      .slice(0, 12)
+      .join(', ');
+    lines.push(`- ${file.info.relativePath} [${file.info.language}]${symbols ? `: ${symbols}` : ''}`);
+  }
+  if (files.length > maxFiles) {
+    lines.push(`...and ${files.length - maxFiles} more files`);
+  }
+  return lines.join('\n');
 }
 
 export class ExplainAgent extends BaseAgent<ExplainInput, ExplainOutput> {
@@ -69,8 +90,18 @@ export class ExplainAgent extends BaseAgent<ExplainInput, ExplainOutput> {
       throw new Error(`File not found: ${filePath}`);
     }
 
-    // Build explanation based on depth
-    const explanation = this.buildFileExplanation(file, depth);
+    // Build explanation based on depth (AI when available, heuristic otherwise)
+    let explanation: CodeExplanation;
+    if (isLLMAvailable()) {
+      try {
+        explanation = await this.buildFileExplanationAI(file, depth);
+      } catch (error) {
+        this.log(`AI explanation failed for '${filePath}', using heuristic: ${error instanceof Error ? error.message : error}`);
+        explanation = this.buildFileExplanation(file, depth);
+      }
+    } else {
+      explanation = this.buildFileExplanation(file, depth);
+    }
     const relatedCode = this.findRelatedCode(file, context.files);
     const followUp = this.generateFollowUpQuestions(file);
 
@@ -128,6 +159,118 @@ export class ExplainAgent extends BaseAgent<ExplainInput, ExplainOutput> {
         assessment: this.assessComplexity(avgComplexity)
       },
       suggestions: suggestions.length > 0 ? suggestions : undefined
+    };
+  }
+
+  private avgComplexity(blocks: CodeBlock[]): number {
+    const complexities = blocks
+      .filter(b => b.complexity !== undefined)
+      .map(b => b.complexity!);
+    return complexities.length > 0
+      ? complexities.reduce((a, b) => a + b, 0) / complexities.length
+      : 1;
+  }
+
+  private async buildFileExplanationAI(
+    file: ParsedFile,
+    depth: 'shallow' | 'normal' | 'deep'
+  ): Promise<CodeExplanation> {
+    const score = this.avgComplexity(file.blocks);
+    const detail = depth === 'shallow'
+      ? 'Keep the summary to one or two sentences.'
+      : depth === 'deep'
+        ? 'Give a thorough summary covering the main blocks, control flow, and notable design choices.'
+        : 'Give a clear paragraph-length summary.';
+
+    const system =
+      'You are a senior engineer explaining a source file to a teammate. ' +
+      'Base every statement on the actual code provided — never invent behavior. ' +
+      `${detail} Respond with JSON matching the schema.`;
+
+    const prompt =
+      `File: ${file.info.relativePath} (${file.info.language})\n` +
+      `Defined symbols: ${file.blocks.map(b => `${b.type} ${b.name}`).join(', ') || 'none'}\n\n` +
+      'Source:\n```' + file.info.language + '\n' + file.rawContent.slice(0, 12000) + '\n```';
+
+    const ai = await llmCompleteJSON<{
+      summary: string;
+      purpose: string;
+      patterns: string[];
+      suggestions: string[];
+    }>({
+      system,
+      prompt,
+      maxTokens: 2048,
+      model: this.context?.config.aiModel,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          summary: { type: 'string' },
+          purpose: { type: 'string' },
+          patterns: { type: 'array', items: { type: 'string' } },
+          suggestions: { type: 'array', items: { type: 'string' } }
+        },
+        required: ['summary', 'purpose', 'patterns', 'suggestions']
+      }
+    });
+
+    return {
+      summary: ai.summary,
+      purpose: ai.purpose,
+      patterns: ai.patterns,
+      // Dependencies and complexity stay deterministic (measured, not guessed).
+      dependencies: file.imports.map(i => i.source),
+      complexity: { score, assessment: this.assessComplexity(score) },
+      suggestions: ai.suggestions.length > 0 ? ai.suggestions : undefined
+    };
+  }
+
+  private async buildBlockExplanationAI(
+    block: CodeBlock,
+    file: ParsedFile
+  ): Promise<CodeExplanation> {
+    const score = block.complexity || 1;
+
+    const system =
+      'You are a senior engineer explaining one code block to a teammate. ' +
+      'Base every statement on the actual code provided — never invent behavior. ' +
+      'Respond with JSON matching the schema.';
+
+    const prompt =
+      `${block.type} "${block.name}" in ${file.info.relativePath} (${file.info.language}):\n\n` +
+      '```' + file.info.language + '\n' + block.content.slice(0, 8000) + '\n```';
+
+    const ai = await llmCompleteJSON<{
+      summary: string;
+      purpose: string;
+      patterns: string[];
+      suggestions: string[];
+    }>({
+      system,
+      prompt,
+      maxTokens: 1536,
+      model: this.context?.config.aiModel,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          summary: { type: 'string' },
+          purpose: { type: 'string' },
+          patterns: { type: 'array', items: { type: 'string' } },
+          suggestions: { type: 'array', items: { type: 'string' } }
+        },
+        required: ['summary', 'purpose', 'patterns', 'suggestions']
+      }
+    });
+
+    return {
+      summary: ai.summary,
+      purpose: ai.purpose,
+      patterns: ai.patterns,
+      dependencies: this.extractBlockDependencies(block, file),
+      complexity: { score, assessment: this.assessComplexity(score) },
+      suggestions: ai.suggestions.length > 0 ? ai.suggestions : undefined
     };
   }
 
@@ -430,7 +573,17 @@ export class ExplainAgent extends BaseAgent<ExplainInput, ExplainOutput> {
       throw new Error(`Block not found: ${blockIdentifier}`);
     }
 
-    const explanation = this.buildBlockExplanation(targetBlock, targetFile, depth);
+    let explanation: CodeExplanation;
+    if (isLLMAvailable()) {
+      try {
+        explanation = await this.buildBlockExplanationAI(targetBlock, targetFile);
+      } catch (error) {
+        this.log(`AI block explanation failed for '${blockIdentifier}', using heuristic: ${error instanceof Error ? error.message : error}`);
+        explanation = this.buildBlockExplanation(targetBlock, targetFile, depth);
+      }
+    } else {
+      explanation = this.buildBlockExplanation(targetBlock, targetFile, depth);
+    }
 
     return {
       explanation,
@@ -616,7 +769,47 @@ export class ExplainAgent extends BaseAgent<ExplainInput, ExplainOutput> {
     }
 
     // Generic query handling
+    if (isLLMAvailable()) {
+      try {
+        return await this.answerGenericQueryAI(query, context);
+      } catch (error) {
+        this.log(`AI query answer failed, using heuristic: ${error instanceof Error ? error.message : error}`);
+      }
+    }
     return this.answerGenericQuery(query, context);
+  }
+
+  private async answerGenericQueryAI(query: string, context: ExplainContext): Promise<ExplainOutput> {
+    const system =
+      'You are DocuMate, an assistant that answers questions about a specific codebase. ' +
+      'Use only the provided codebase summary; be concise and specific, and if the summary ' +
+      'is insufficient say what file the user should look at. Answer in markdown prose.';
+
+    const prompt =
+      `Codebase summary:\n${summarizeCodebase(context.files)}\n\n` +
+      `Question: ${query}`;
+
+    const answer = await llmComplete({
+      system,
+      prompt,
+      maxTokens: 2048,
+      model: this.context?.config.aiModel
+    });
+
+    return {
+      explanation: {
+        summary: answer,
+        purpose: 'Query result',
+        patterns: [],
+        dependencies: [],
+        complexity: { score: 0, assessment: 'N/A' }
+      },
+      followUp: [
+        'Show me all files',
+        'What does this codebase do?',
+        'Find complex code'
+      ]
+    };
   }
 
   private answerComplexityQuery(context: ExplainContext): ExplainOutput {
@@ -836,7 +1029,45 @@ export class ChatAgent extends BaseAgent<ChatMessage, ChatMessage> {
   protected async execute(input: ChatMessage): Promise<ChatMessage> {
     const query = input.content.toLowerCase();
 
-    // Determine intent and respond
+    // Fast local commands that never need the model.
+    if (query.includes('help') || query === '?') {
+      return { role: 'assistant', content: this.getHelpMessage(), timestamp: new Date() };
+    }
+    if ((query.includes('files') || query.includes('list')) && !query.includes('explain')) {
+      return { role: 'assistant', content: this.listFiles(), timestamp: new Date() };
+    }
+
+    // Real AI conversation when a key is configured and context is loaded.
+    if (isLLMAvailable() && this.context?.files) {
+      try {
+        const content = await this.chatAI(input.content);
+        return { role: 'assistant', content, timestamp: new Date() };
+      } catch (error) {
+        this.log(`AI chat failed, using heuristic: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+
+    return { role: 'assistant', content: await this.respondHeuristic(input), timestamp: new Date() };
+  }
+
+  private async chatAI(message: string): Promise<string> {
+    const system =
+      'You are DocuMate, an AI assistant that helps developers understand THIS codebase. ' +
+      'Answer using the provided codebase summary. Be concise, concrete, and reference ' +
+      'specific files or symbols. If something is not covered by the summary, say which ' +
+      'file the user should open. Use markdown.\n\n' +
+      `Codebase summary:\n${summarizeCodebase(this.context!.files)}`;
+
+    return llmComplete({
+      system,
+      prompt: message,
+      maxTokens: 2048,
+      model: this.context!.config.aiModel
+    });
+  }
+
+  private async respondHeuristic(input: ChatMessage): Promise<string> {
+    const query = input.content.toLowerCase();
     let responseContent: string;
 
     if (query.includes('explain') || query.includes('what does') || query.includes('how does')) {
@@ -879,11 +1110,7 @@ export class ChatAgent extends BaseAgent<ChatMessage, ChatMessage> {
         '- "list files" - See all analyzed files';
     }
 
-    return {
-      role: 'assistant',
-      content: responseContent,
-      timestamp: new Date()
-    };
+    return responseContent;
   }
 
   private getHelpMessage(): string {

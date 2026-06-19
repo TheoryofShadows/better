@@ -9,6 +9,7 @@ import simpleGit, { SimpleGit } from 'simple-git';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { resolve, dirname, basename } from 'path';
 import { createPatch } from 'diff';
+import { isLLMAvailable, llmComplete } from './llm.js';
 import type { ParsedFile, CodeBlock, Language } from '../types.js';
 import type { FixSuggestion, PRInfo } from './types.js';
 
@@ -147,7 +148,7 @@ export class FixAgent extends BaseAgent<FixInput, FixOutput> {
         // Documentation fixes
         if (shouldFix('documentation') && !block.documentation) {
           if (['function', 'method', 'class', 'interface'].includes(block.type)) {
-            const doc = this.generateDocumentation(block, file.info.language);
+            const doc = await this.generateDocumentation(block, file.info.language);
             suggestions.push({
               file: file.info.relativePath,
               line: block.startLine,
@@ -195,7 +196,49 @@ export class FixAgent extends BaseAgent<FixInput, FixOutput> {
     return suggestions.sort((a, b) => b.confidence - a.confidence);
   }
 
-  private generateDocumentation(block: CodeBlock, language: Language): string {
+  private async generateDocumentation(block: CodeBlock, language: Language): Promise<string> {
+    if (isLLMAvailable()) {
+      try {
+        return await this.generateDocumentationAI(block, language);
+      } catch (error) {
+        this.log(`AI doc generation failed for '${block.name}', using heuristic: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    return this.generateDocumentationHeuristic(block, language);
+  }
+
+  private async generateDocumentationAI(block: CodeBlock, language: Language): Promise<string> {
+    const commentStyle: Record<string, string> = {
+      typescript: 'a JSDoc block comment (/** ... */ with @param/@returns)',
+      javascript: 'a JSDoc block comment (/** ... */ with @param/@returns)',
+      java: 'a Javadoc block comment (/** ... */ with @param/@return)',
+      python: 'a Python docstring (triple-quoted, Google style with Args:/Returns:)',
+      go: 'a Go doc comment (// lines starting with the identifier name)'
+    };
+    const style = commentStyle[language] || 'an idiomatic doc comment for this language';
+
+    const system =
+      `You are a senior ${language} engineer writing API documentation. ` +
+      `Given a code block, output ONLY ${style} that documents it accurately. ` +
+      `Describe what the code actually does based on its body — do not invent behavior. ` +
+      `Output just the comment, with no surrounding code, no markdown fences, and no commentary.`;
+
+    const prompt =
+      `Document this ${block.type} named "${block.name}".\n\n` +
+      '```' + language + '\n' + this.truncateCode(block.content) + '\n```';
+
+    const doc = await llmComplete({
+      system,
+      prompt,
+      maxTokens: 1024,
+      model: this.context?.config.aiModel
+    });
+
+    // Strip stray markdown fences the model may add despite instructions.
+    return doc.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+  }
+
+  private generateDocumentationHeuristic(block: CodeBlock, language: Language): string {
     const params = block.parameters || [];
     const returnType = block.returnType;
 
