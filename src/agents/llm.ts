@@ -79,3 +79,41 @@ export async function llmCompleteJSON<T>(opts: LLMCompleteJSONOptions): Promise<
   });
   return JSON.parse(extractText(message)) as T;
 }
+
+export type VisionMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+export interface LLMVisionJSONOptions {
+  system?: string;
+  prompt: string;
+  image: { mediaType: VisionMediaType; base64: string };
+  schema: Record<string, unknown>;
+  maxTokens?: number;
+  model?: string;
+}
+
+/**
+ * Analyze an image with Claude vision and parse a JSON-schema-constrained result.
+ * Throws on failure so callers can fall back to heuristics.
+ */
+export async function llmCompleteVisionJSON<T>(opts: LLMVisionJSONOptions): Promise<T> {
+  const message = await getClient().messages.create({
+    model: opts.model || DEFAULT_AI_MODEL,
+    max_tokens: opts.maxTokens ?? 2048,
+    thinking: { type: 'adaptive' },
+    output_config: { format: { type: 'json_schema', schema: opts.schema } },
+    ...(opts.system ? { system: opts.system } : {}),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: opts.image.mediaType, data: opts.image.base64 }
+          },
+          { type: 'text', text: opts.prompt }
+        ]
+      }
+    ]
+  });
+  return JSON.parse(extractText(message)) as T;
+}
