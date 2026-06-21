@@ -351,6 +351,7 @@ export class SecurityAgent extends BaseAgent<SecurityInput, SecurityOutput> {
             line: i + 1,
             type,
             severity,
+            /* v8 ignore next -- regex.test already matched this line, so match()?.[0] is always defined */
             pattern: this.maskSecret(line.match(regex)?.[0] || ''),
             recommendation: this.getSecretRecommendation(type)
           });
@@ -433,6 +434,7 @@ export class SecurityAgent extends BaseAgent<SecurityInput, SecurityOutput> {
     // Detect eval usage
     if (/\beval\s*\(/.test(content)) {
       const match = content.match(/\beval\s*\(/);
+      /* v8 ignore next -- guarded by the test() above, so match.index is always defined */
       const line = content.slice(0, match?.index || 0).split('\n').length;
       smells.push({
         file: file.info.relativePath,
@@ -457,6 +459,7 @@ export class SecurityAgent extends BaseAgent<SecurityInput, SecurityOutput> {
     // Detect TODO/FIXME in security-sensitive areas
     const todoMatches = content.matchAll(/(?:TODO|FIXME).*(?:security|auth|password|token)/gi);
     for (const match of todoMatches) {
+      /* v8 ignore next -- matchAll results always carry a defined index */
       const line = content.slice(0, match.index || 0).split('\n').length;
       smells.push({
         file: file.info.relativePath,

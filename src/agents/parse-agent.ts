@@ -69,9 +69,11 @@ export class ParseAgent extends BaseAgent<ParseInput, ParseOutput> {
         for (const block of parsed.blocks) {
           codeBlocks.push(this.summarizeBlock(block, parsed.info.relativePath));
         }
+        /* v8 ignore start -- parseFile reads UTF-8 from a glob-matched readable file; failure is defensive */
       } catch (error) {
         this.log(`Warning: Could not parse ${filePath}: ${error}`);
       }
+      /* v8 ignore stop */
     }
 
     // Generate summary

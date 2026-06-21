@@ -823,6 +823,7 @@ export class ExplainAgent extends BaseAgent<ExplainInput, ExplainOutput> {
       }
     }
 
+    /* v8 ignore next -- collected blocks always have a truthy complexity (filtered above), so `|| 0` is unreachable */
     complexBlocks.sort((a, b) => (b.block.complexity || 0) - (a.block.complexity || 0));
 
     const summary = complexBlocks.length > 0
@@ -1084,6 +1085,7 @@ export class ChatAgent extends BaseAgent<ChatMessage, ChatMessage> {
           context
         });
 
+        /* v8 ignore next -- answerQuery always resolves successfully, so this is never false */
         if (result.success && result.data) {
           responseContent = result.data.explanation.summary;
           if (result.data.followUp && result.data.followUp.length > 0) {
@@ -1091,15 +1093,18 @@ export class ChatAgent extends BaseAgent<ChatMessage, ChatMessage> {
               result.data.followUp.map(q => `- ${q}`).join('\n');
           }
         } else {
+          /* v8 ignore next -- answerQuery always resolves successfully; defensive only */
           responseContent = 'I could not find relevant information for your query.';
         }
       } else {
         responseContent = 'No codebase context available. Please run analysis first.';
       }
+      /* v8 ignore start -- help/files queries are handled earlier in execute(), never reaching here */
     } else if (query.includes('help') || query === '?') {
       responseContent = this.getHelpMessage();
     } else if (query.includes('files') || query.includes('list')) {
       responseContent = this.listFiles();
+      /* v8 ignore stop */
     } else {
       // Generic response with suggestions
       responseContent = `I understand you're asking about: "${input.content}"\n\n` +

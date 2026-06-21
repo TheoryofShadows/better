@@ -15,10 +15,10 @@ export default defineConfig({
         'src/cli.ts'
       ],
       thresholds: {
-        lines: 50,
-        functions: 60,
-        branches: 50,
-        statements: 50
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100
       }
     },
     testTimeout: 30000

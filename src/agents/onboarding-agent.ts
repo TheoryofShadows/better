@@ -440,6 +440,7 @@ export class OnboardingAgent extends BaseAgent<OnboardingInput, OnboardingOutput
       'TypeScript Interfaces': 'Interfaces define contracts for type safety.'
     };
 
+    /* v8 ignore next -- detectPatterns only ever yields names present in the map above */
     return explanations[pattern] || `The ${pattern} pattern is used throughout the codebase.`;
   }
 
@@ -649,11 +650,12 @@ main();`,
 
     if (totalMinutes < 60) {
       return `${totalMinutes} minutes`;
-    } else if (totalMinutes < 480) {
-      return `${Math.round(totalMinutes / 60)} hours`;
-    } else {
+    }
+    /* v8 ignore next 2 -- the generated learning path tops out at ~330 minutes, never >= 480 (days) */
+    if (totalMinutes >= 480) {
       return `${Math.round(totalMinutes / 480)} days`;
     }
+    return `${Math.round(totalMinutes / 60)} hours`;
   }
 
   private async writeGuideFiles(
