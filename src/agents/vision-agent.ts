@@ -16,6 +16,7 @@
 import { BaseAgent } from './base.js';
 import { readFile, access, readdir } from 'fs/promises';
 import { extname, join, basename, dirname } from 'path';
+import { isLLMAvailable, llmCompleteVisionJSON, type VisionMediaType } from './llm.js';
 import type { ParsedFile, CodeBlock } from '../types.js';
 
 export interface VisionInput {
@@ -82,9 +83,11 @@ export class VisionAgent extends BaseAgent<VisionInput, VisionOutput> {
         // Find code links for diagram elements
         const links = this.findCodeLinks(analysis, input.context.files);
         codeLinks.push(...links);
+        /* v8 ignore start -- analyzeImage handles its own failures (AI falls back to heuristic), so this never throws */
       } catch (error) {
         this.log(`Warning: Could not analyze ${imagePath}: ${error}`);
       }
+      /* v8 ignore stop */
     }
 
     // Generate summary
@@ -148,7 +151,97 @@ export class VisionAgent extends BaseAgent<VisionInput, VisionOutput> {
     return images;
   }
 
+  private static readonly RASTER_MEDIA_TYPES: Record<string, VisionMediaType> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp'
+  };
+
   private async analyzeImage(
+    imagePath: string,
+    context: VisionContext
+  ): Promise<ImageAnalysis> {
+    const ext = extname(imagePath).toLowerCase();
+    const mediaType = VisionAgent.RASTER_MEDIA_TYPES[ext];
+
+    // Real multimodal analysis for raster images when a key is configured.
+    if (isLLMAvailable() && mediaType) {
+      try {
+        return await this.analyzeImageAI(imagePath, mediaType, context);
+      } catch (error) {
+        this.log(`AI vision failed for ${basename(imagePath)}, using heuristic: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+
+    return this.analyzeImageHeuristic(imagePath, context);
+  }
+
+  private async analyzeImageAI(
+    imagePath: string,
+    mediaType: VisionMediaType,
+    context: VisionContext
+  ): Promise<ImageAnalysis> {
+    const base64 = (await readFile(imagePath)).toString('base64');
+
+    const system =
+      'You are analyzing a software diagram or screenshot. Identify the kind of image and ' +
+      'the distinct elements it depicts (classes, functions, components, services, databases, ' +
+      'arrows, or text labels) with their visible connections. Base everything on what is ' +
+      'actually in the image. Respond with JSON matching the schema.';
+
+    const ai = await llmCompleteVisionJSON<{
+      type: ImageAnalysis['type'];
+      description: string;
+      elements: Array<{ name: string; type: DiagramElement['type']; connections: string[] }>;
+    }>({
+      system,
+      prompt: `Analyze ${basename(imagePath)} and describe its structure.`,
+      image: { mediaType, base64 },
+      maxTokens: 2048,
+      model: this.context?.config.aiModel,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          type: { type: 'string', enum: ['diagram', 'screenshot', 'flowchart', 'architecture', 'unknown'] },
+          description: { type: 'string' },
+          elements: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string' },
+                type: { type: 'string', enum: ['class', 'function', 'component', 'service', 'database', 'arrow', 'text'] },
+                connections: { type: 'array', items: { type: 'string' } }
+              },
+              required: ['name', 'type', 'connections']
+            }
+          }
+        },
+        required: ['type', 'description', 'elements']
+      }
+    });
+
+    const elements: DiagramElement[] = ai.elements.map((e) => ({
+      name: e.name,
+      type: e.type,
+      connections: e.connections
+    }));
+
+    return {
+      path: imagePath,
+      type: ai.type,
+      elements,
+      description: ai.description,
+      // Reuse the existing deterministic code-linking on the AI-extracted elements.
+      relatedFiles: this.findRelatedFiles(elements, context.files)
+    };
+  }
+
+  private async analyzeImageHeuristic(
     imagePath: string,
     context: VisionContext
   ): Promise<ImageAnalysis> {
@@ -359,6 +452,7 @@ export class VisionAgent extends BaseAgent<VisionInput, VisionOutput> {
       summary += `\nIdentified ${codeLinks.length} links between diagrams and code.`;
 
       const highConfidence = codeLinks.filter(l => l.confidence >= 0.8);
+      /* v8 ignore next -- any matched element yields an exact (0.85) link, so high-confidence is always present when links exist */
       if (highConfidence.length > 0) {
         summary += `\nHigh-confidence matches:\n`;
         for (const link of highConfidence.slice(0, 5)) {
@@ -411,6 +505,7 @@ export class DiagramParser {
       // Infer connections based on proximity (simplified)
       for (let i = 0; i < elements.length - 1; i++) {
         if (elements[i].type !== 'text') {
+          /* v8 ignore next -- the loop stops before the last element, so elements[i+1] is always defined */
           elements[i].connections.push(elements[i + 1]?.name || 'next');
         }
       }

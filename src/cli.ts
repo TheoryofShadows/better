@@ -19,7 +19,7 @@ import { parseFile, detectLanguage } from './parser/index.js';
 import { DEFAULT_CONFIG } from './types.js';
 import type { Config, Language } from './types.js';
 
-const VERSION = '1.0.0';
+const VERSION = '2.1.0';
 
 const program = new Command();
 
@@ -502,13 +502,21 @@ program
     const { writeFile } = await import('fs/promises');
     await writeFile(configPath, JSON.stringify(config, null, 2));
 
+    const aiStatus = process.env.ANTHROPIC_API_KEY
+      ? chalk.green(`${figures.tick} ANTHROPIC_API_KEY detected — AI agents are active.`)
+      : chalk.yellow(`${figures.warning} No ANTHROPIC_API_KEY set — agents use heuristics.\n`) +
+        chalk.gray('  Set it to enable real Claude-powered chat, explanations,\n') +
+        chalk.gray('  documentation, and debt analysis:\n') +
+        chalk.cyan('    export ANTHROPIC_API_KEY=sk-ant-...');
+
     console.log('\n' + boxen(
       chalk.green(`${figures.tick} Configuration initialized!\n\n`) +
       chalk.white(`Created: ${chalk.cyan(configPath)}\n\n`) +
       chalk.gray('Edit this file to customize:\n') +
       chalk.gray('  • include/exclude patterns\n') +
       chalk.gray('  • output format and directory\n') +
-      chalk.gray('  • complexity thresholds'),
+      chalk.gray('  • complexity thresholds\n\n') +
+      aiStatus,
       {
         padding: 1,
         borderStyle: 'round',

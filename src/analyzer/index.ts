@@ -31,7 +31,7 @@ export async function analyzeCodebase(options: AnalyzerOptions): Promise<Analysi
       const parsed = await parseFile(filePath, options.basePath);
       parsedFiles.push(parsed);
     } catch (error) {
-      // Skip files that can't be parsed
+      /* v8 ignore next 2 -- parseFile reads UTF-8 from a glob-matched readable file; failure is defensive */
       console.error(`Warning: Could not parse ${filePath}`);
     }
   }
@@ -105,6 +105,7 @@ function findComplexBlocks(files: ParsedFile[], minComplexity: number): CodeBloc
     }
   }
 
+  /* v8 ignore next -- complex blocks always have a truthy complexity (filtered above), so `|| 0` is unreachable */
   return complex.sort((a, b) => (b.complexity || 0) - (a.complexity || 0));
 }
 

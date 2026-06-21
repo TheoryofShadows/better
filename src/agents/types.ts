@@ -31,6 +31,8 @@ export interface AgentConfig {
   autoFix: boolean;
   createPRs: boolean;
   githubToken?: string;
+  /** Claude model id used by AI-powered agents. Defaults to claude-opus-4-8. */
+  aiModel?: string;
 }
 
 export interface AgentResult<T = unknown> {

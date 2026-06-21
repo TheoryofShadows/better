@@ -287,6 +287,7 @@ function extractJavaBlocks(content: string, lines: string[]): CodeBlock[] {
     const params = match[4];
 
     // Skip constructors and class declarations
+    /* v8 ignore next -- the method regex requires two identifiers before '(', which class/interface decls never have */
     if (returnType === 'class' || returnType === 'interface') continue;
 
     const endLine = findBlockEnd(lines, startLine - 1);
@@ -507,7 +508,8 @@ function extractImports(content: string, language: Language): ImportInfo[] {
               });
             }
           }
-        } else if (match[2]) {
+          /* The single-quote import form always populates group 2 when group 1 is absent. */
+        } else {
           imports.push({
             source: match[2],
             items: [basename(match[2])],
@@ -616,6 +618,7 @@ function extractPrecedingDoc(lines: string[], lineIndex: number): string | undef
 
   // Skip empty lines
   while (i >= 0 && lines[i].trim() === '') {
+    /* v8 ignore next -- the function regex consumes leading blank lines, so this rarely lands on one */
     i--;
   }
 

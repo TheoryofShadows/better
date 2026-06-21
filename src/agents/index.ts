@@ -15,7 +15,10 @@ import { ParseAgent, BlockAnalyzer } from './parse-agent.js';
 import { PredictAgent } from './predict-agent.js';
 import { FixAgent } from './fix-agent.js';
 import { ExplainAgent, ChatAgent } from './explain-agent.js';
+import { DEFAULT_AI_MODEL } from './llm.js';
 import type { AgentContext, AgentConfig } from './types.js';
+
+export { isLLMAvailable, llmComplete, llmCompleteJSON, DEFAULT_AI_MODEL } from './llm.js';
 
 export function createOrchestrator(config?: Partial<AgentConfig>): AgentOrchestrator {
   const orchestrator = new AgentOrchestrator();
@@ -36,5 +39,6 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   timeout: 300000, // 5 minutes
   sandboxed: true,
   autoFix: false,
-  createPRs: false
+  createPRs: false,
+  aiModel: DEFAULT_AI_MODEL
 };

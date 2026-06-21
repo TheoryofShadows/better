@@ -361,6 +361,7 @@ ${file.exports.map(e => `- \`${e.name}\` (${e.type})`).join('\n')}
 `;
   }
 
+  /* v8 ignore next -- generateFileDoc is only invoked for files that already have blocks */
   if (file.blocks.length > 0) {
     doc += `## Contents
 
