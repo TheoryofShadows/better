@@ -3,7 +3,13 @@
  */
 
 export interface FileInfo {
+  /** Absolute path, in the platform's native form. */
   path: string;
+  /**
+   * Path relative to the scan root, always forward-slashed regardless of
+   * platform. Callers compare and `split('/')` on it, so it must not carry
+   * Windows separators.
+   */
   relativePath: string;
   extension: string;
   language: Language;

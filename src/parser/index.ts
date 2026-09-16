@@ -4,7 +4,7 @@
  */
 
 import { readFile } from 'fs/promises';
-import { basename, extname, relative } from 'path';
+import { basename, extname, relative, sep } from 'path';
 import { stat } from 'fs/promises';
 import type {
   FileInfo,
@@ -52,7 +52,10 @@ export async function getFileInfo(filePath: string, basePath: string): Promise<F
 
   return {
     path: filePath,
-    relativePath: relative(basePath, filePath),
+    // Normalized to forward slashes so it compares equal across platforms.
+    // Windows `relative()` returns `src\example.ts`, which never matched the
+    // `src/example.ts` form every caller and test uses.
+    relativePath: relative(basePath, filePath).split(sep).join('/'),
     extension: extname(filePath),
     language: detectLanguage(filePath),
     size: stats.size,
