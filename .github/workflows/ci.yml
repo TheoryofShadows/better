@@ -1,0 +1,49 @@
+name: CI
+
+# The repo advertises a 100% coverage gate in vitest.config.ts but had no
+# workflow to enforce it, so the gate only ran when someone remembered to run
+# it locally. Two tests were failing on Windows for weeks without anything
+# noticing. This runs the same commands a contributor would.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-latest is not padding: the bug this workflow was added
+        # alongside was a path separator bug that only reproduced on Windows.
+        # A ubuntu-only matrix would have stayed green through it.
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck / build
+        run: npm run build
+
+      - name: Test with coverage
+        # vitest.config.ts sets 100% thresholds for lines, functions,
+        # branches and statements, so this fails the job if coverage drops.
+        run: npm test
