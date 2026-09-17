@@ -30,8 +30,10 @@ coverage/
 # Generated docs (optional - can be committed if desired)
 docs/
 
-# Package lock (use npm ci in CI)
-package-lock.json
+# package-lock.json is intentionally committed. `npm ci` -- which CI runs --
+# fails outright without it, so ignoring the lockfile made the "use npm ci"
+# note below impossible to honour. A published CLI also wants reproducible
+# installs, not whatever the registry resolves to on the day.
 
 # Temporary files
 *.tmp
